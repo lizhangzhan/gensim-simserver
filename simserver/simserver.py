@@ -734,7 +734,10 @@ class SimServer(object):
         sims_opt, sims_fresh = None, None
         for index in [self.fresh_index, self.opt_index]:
             if index is not None:
-                index.topsims = max_results
+                if max_results > 0:
+                    index.topsims = max_results
+                else:
+                    index.topsims = index.length
         if isinstance(doc, basestring):
             # query by direct document id
             docid = doc
@@ -766,8 +769,10 @@ class SimServer(object):
         logger.debug("got %s raw similars, pruning with max_results=%s, min_score=%s" %
             (len(merged), max_results, min_score))
         result = []
+        
+        # Return best ranking
         for docid, score in merged:
-            if score < min_score or 0 < max_results <= len(result):
+            if score < min_score or 0 < max_results <= len(result) and max_results > 0:
                 break
             result.append((docid, float(score), self.payload.get(docid, None)))
         return result
