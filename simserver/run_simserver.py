@@ -23,8 +23,11 @@ import sys
 import gensim
 import simserver
 
+import Pyro4
+
+
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(module)s:%(lineno)d : %(funcName)s(%(threadName)s) : %(message)s')
+    logging.basicConfig(filename='simserver.log', format='%(asctime)s : %(levelname)s : %(module)s:%(lineno)d : %(funcName)s(%(threadName)s) : %(message)s')
     logging.root.setLevel(level=logging.INFO)
     logging.info("running %s" % ' '.join(sys.argv))
 
@@ -37,6 +40,13 @@ if __name__ == '__main__':
 
     basename = sys.argv[1]
     server = simserver.SessionServer(basename)
-    gensim.utils.pyro_daemon('gensim.testserver', server)
+    
+    daemon=Pyro4.Daemon()                 # make a Pyro daemon
+    ns=Pyro4.locateNS()                   # find the name server
+    uri=daemon.register(server)   # register the greeting object as a Pyro object
+    ns.register("simserver.sessionserver", uri)  # register the object with a name in the name server
+    
+    print "Ready."
+    daemon.requestLoop()
 
     logging.info("finished running %s" % program)
