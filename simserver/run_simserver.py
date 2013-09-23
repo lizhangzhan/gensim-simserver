@@ -25,13 +25,6 @@ import simserver
 
 import Pyro4
 
-import rpyc
-from rpyc.utils.server import ThreadedServer # or ForkingServer
-
-class SimserverService(rpyc.Service):
-    def __init__(self):
-        self.service = simserver.SessionServer()
-
 if __name__ == '__main__':
     logging.basicConfig(filename='simserver.log', format='%(asctime)s : %(levelname)s : %(module)s:%(lineno)d : %(funcName)s(%(threadName)s) : %(message)s')
     logging.root.setLevel(level=logging.INFO)
@@ -45,8 +38,10 @@ if __name__ == '__main__':
         sys.exit(1)
 
     basename = sys.argv[1]
+    simserver = simserver.SessionServer(basename)
     
-    server = ThreadedServer(SimserverService, port = 12345)
-    server.start()
+    daemon = Pyro4.Daemon()                 # make a Pyro daemon
+    uri = daemon.register(simserver, 'gensim.testserver')   # register the greeting object as a Pyro object
+    daemon.requestLoop()   
 
     logging.info("finished running %s" % program)
