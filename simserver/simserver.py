@@ -35,6 +35,7 @@ import numpy
 import gensim
 from sqlitedict import SqliteDict # needs sqlitedict: run "sudo easy_install sqlitedict"
 
+from pymongo import MongoClient
 
 logger = logging.getLogger('gensim.similarities.simserver')
 
@@ -59,6 +60,18 @@ def merge_sims(oldsims, newsims, clip=None):
     return result
 
 
+class MongoCorpus():
+    def __init__(self, server='localhost', db='wordizdb', collection='corpus'):
+        self.connect(server, db, collection)
+    
+    def connect(self, server, db, collection):
+        self.client = MongoClient()
+        self.db = self.client[db]
+        self.corpus = self.db[collection]
+        
+    def get_corpus(self):
+        it = self.corpus.find()
+        return it['result']
 
 class SimIndex(gensim.utils.SaveLoad):
     """
@@ -86,7 +99,6 @@ class SimIndex(gensim.utils.SaveLoad):
         super(SimIndex, self).save(fname)
         self.id2sims = tmp
 
-
     @staticmethod
     def load(fname):
         result = gensim.utils.SaveLoad.load(fname)
@@ -95,7 +107,6 @@ class SimIndex(gensim.utils.SaveLoad):
         result.id2sims = SqliteDict(fname + '.id2sims', journal_mode=JOURNAL_MODE)
         return result
 
-
     def check_moved(self):
         output_prefix = self.fname + '.idx'
         if self.qindex.output_prefix != output_prefix:
@@ -103,7 +114,6 @@ class SimIndex(gensim.utils.SaveLoad):
                 (self.qindex.output_prefix, output_prefix))
             self.qindex.output_prefix = output_prefix
             self.qindex.check_moved()
-
 
     def close(self):
         "Explicitly release important resources (file handles, db, ...)"
@@ -115,7 +125,6 @@ class SimIndex(gensim.utils.SaveLoad):
             del self.qindex
         except:
             pass
-
 
     def terminate(self):
         """Delete all files created by this index, invalidating `self`. Use with care."""
@@ -135,8 +144,7 @@ class SimIndex(gensim.utils.SaveLoad):
                 delattr(self, val)
             except:
                 pass
-
-
+    
     def index_documents(self, fresh_docs, model):
         """
         Update fresh index with new documents (potentially replacing old ones with
@@ -149,7 +157,6 @@ class SimIndex(gensim.utils.SaveLoad):
         self.qindex.add_documents(vectors)
         self.qindex.save()
         self.update_ids(docids)
-
 
     def update_ids(self, docids):
         """Update id->pos mapping with new document ids."""
@@ -169,12 +176,10 @@ class SimIndex(gensim.utils.SaveLoad):
         self.id2sims.sync()
         self.update_mappings()
 
-
     def update_mappings(self):
         """Synchronize id<->position mappings."""
         self.pos2id = dict((v, k) for k, v in self.id2pos.iteritems())
         assert len(self.pos2id) == len(self.id2pos), "duplicate ids or positions detected"
-
 
     def delete(self, docids):
         """Delete documents (specified by their ids) from the index."""
@@ -191,7 +196,6 @@ class SimIndex(gensim.utils.SaveLoad):
         if deleted:
             logger.info("deleted %i documents from %s" % (deleted, self))
         self.update_mappings()
-
 
     def sims2scores(self, sims, eps=1e-7):
         """Convert raw similarity vector to a list of (docid, similarity) results."""
@@ -213,12 +217,10 @@ class SimIndex(gensim.utils.SaveLoad):
                         break
         return result
 
-
     def vec_by_id(self, docid):
         """Return indexed vector corresponding to document `docid`."""
         pos = self.id2pos[docid]
         return self.qindex.vector_by_id(pos)
-
 
     def sims_by_id(self, docid):
         """Find the most similar documents to the (already indexed) document with `docid`."""
@@ -228,7 +230,6 @@ class SimIndex(gensim.utils.SaveLoad):
             sims = self.qindex.similarity_by_id(self.id2pos[docid])
             result = self.sims2scores(sims)
         return result
-
 
     def sims_by_vec(self, vec, normalize=None):
         """
@@ -241,7 +242,6 @@ class SimIndex(gensim.utils.SaveLoad):
         sims = self.qindex[vec]
         self.qindex.normalize = norm # restore old value of qindex.normalize
         return self.sims2scores(sims)
-
 
     def merge(self, other):
         """Merge documents from the other index. Update precomputed similarities
@@ -289,7 +289,6 @@ class SimIndex(gensim.utils.SaveLoad):
                     logger.info("PROGRESS: precomputed doc #%i/%i" % (pos, lenother))
         self.qindex.normalize, self.qindex.num_best = norm, topsims
         self.id2sims.sync()
-
 
     def __len__(self):
         return len(self.id2pos)
@@ -381,7 +380,6 @@ class SimModel(gensim.utils.SaveLoad):
             logger.error(msg)
             raise NotImplementedError(msg)
 
-
     def doc2vec(self, doc):
         """Convert a single SimilarityDocument to vector."""
         bow = self.dictionary.doc2bow(doc['tokens'])
@@ -393,7 +391,6 @@ class SimModel(gensim.utils.SaveLoad):
             return self.lda[self.tfidf[bow]]
         elif self.method == 'logentropy':
             return self.logent[bow]
-
 
     def docs2vecs(self, docs):
         """Convert multiple SimilarityDocuments to vectors (batch version of doc2vec)."""
@@ -407,7 +404,6 @@ class SimModel(gensim.utils.SaveLoad):
         elif self.method == 'logentropy':
             return self.logent[bows]
 
-
     def get_tfidf(self, doc):
         bow = self.dictionary.doc2bow(doc['tokens'])
         if hasattr(self, 'tfidf'):
@@ -415,7 +411,6 @@ class SimModel(gensim.utils.SaveLoad):
         if hasattr(self, 'logent'):
             return self.logent[bow]
         raise ValueError("model must contain either TF-IDF or LogEntropy transformation")
-
 
     def close(self):
         """Release important resources manually."""
@@ -472,10 +467,8 @@ class SimServer(object):
         self.flush(save_index=False, save_model=False, clear_buffer=True)
         logger.info("loaded %s" % self)
 
-
     def location(self, name):
         return os.path.join(self.basename, name)
-
 
     @gensim.utils.synchronous('lock_update')
     def flush(self, save_index=False, save_model=False, clear_buffer=False):
@@ -497,7 +490,6 @@ class SimServer(object):
                     pass
             self.fresh_docs = SqliteDict(journal_mode=JOURNAL_MODE) # buffer defaults to a random location in temp
         self.fresh_docs.sync()
-
 
     def close(self):
         """Explicitly close open file handles, databases etc."""
@@ -551,7 +543,6 @@ class SimServer(object):
             self.fresh_docs[docid] = doc
         self.fresh_docs.sync()
 
-
     @gensim.utils.synchronous('lock_update')
     def train(self, corpus=None, method='auto', clear_buffer=True, params=None):
         """
@@ -581,7 +572,6 @@ class SimServer(object):
             params = {}
         self.model = SimModel(self.fresh_docs, method=method, params=params)
         self.flush(save_model=True, clear_buffer=clear_buffer)
-
 
     @gensim.utils.synchronous('lock_update')
     def index(self, corpus=None, clear_buffer=True):
@@ -622,7 +612,6 @@ class SimServer(object):
             self.payload[docid] = payload
         self.flush(save_index=True, clear_buffer=clear_buffer)
 
-
     @gensim.utils.synchronous('lock_update')
     def optimize(self):
         """
@@ -650,7 +639,6 @@ class SimServer(object):
         self.fresh_index.terminate() # delete old files
         self.fresh_index = None
         self.flush(save_index=True)
-
 
     @gensim.utils.synchronous('lock_update')
     def drop_index(self, keep_model=True):
@@ -690,7 +678,6 @@ class SimServer(object):
             self.model = None
         self.flush(save_index=True, save_model=True, clear_buffer=True)
 
-
     @gensim.utils.synchronous('lock_update')
     def delete(self, docids):
         """Delete specified documents from the index."""
@@ -700,16 +687,13 @@ class SimServer(object):
                 index.delete(docids)
         self.flush(save_index=True)
 
-
     def is_locked(self):
         return self.use_locks and self.lock_update._RLock__count > 0
-
 
     def vec_by_id(self, docid):
         for index in [self.opt_index, self.fresh_index]:
             if index is not None and docid in index:
                 return index.vec_by_id(docid)
-
 
     def find_similar(self, doc, min_score=0.0, max_results=100):
         """
@@ -777,27 +761,22 @@ class SimServer(object):
             result.append((docid, float(score), self.payload.get(docid, None)))
         return result
 
-
     def __str__(self):
         return ("SimServer(loc=%r, fresh=%s, opt=%s, model=%s, buffer=%s)" %
                 (self.basename, self.fresh_index, self.opt_index, self.model, self.fresh_docs))
 
-
     def __len__(self):
         return sum(len(index) for index in [self.opt_index, self.fresh_index]
                    if index is not None)
-
 
     def __contains__(self, docid):
         """Is document with `docid` in the index?"""
         return any(index is not None and docid in index
                    for index in [self.opt_index, self.fresh_index])
 
-
     def get_tfidf(self, *args, **kwargs):
         return self.model.get_tfidf(*args, **kwargs)
-
-
+    
     def status(self):
         return str(self)
 
@@ -852,7 +831,6 @@ class SessionServer(gensim.utils.SaveLoad):
         self.write_istable()
         self.stable = SimServer(self.loc_stable, use_locks=self.use_locks)
         self.session = None
-
 
     def location(self, name):
         return os.path.join(self.basedir, name)
@@ -1043,7 +1021,6 @@ class SessionServer(gensim.utils.SaveLoad):
         except Exception, e:
             logger.warning("failed to delete SessionServer: %s" % (e))
 
-
     def find_similar(self, *args, **kwargs):
         """
         Find similar articles.
@@ -1058,7 +1035,6 @@ class SessionServer(gensim.utils.SaveLoad):
             self.commit()
         return self.stable.find_similar(*args, **kwargs)
 
-
     def get_tfidf(self, *args, **kwargs):
         if self.session is not None and self.autosession:
             # with autosession on, commit the pending transaction first
@@ -1067,6 +1043,7 @@ class SessionServer(gensim.utils.SaveLoad):
 
 
     # add some functions for remote access (RPC via Pyro)
+   
     def debug_model(self):
         return self.stable.model
 
