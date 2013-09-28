@@ -594,8 +594,19 @@ class SimServer(object):
         self.model = SimModel(self.fresh_docs, method=method, params=params)
         self.flush(save_model=True, clear_buffer=clear_buffer)
 
-    def index(self, clear_buffer=True):
-        corpus = corpus = self.corpus.find({}, {'_id':0, 'id':1, 'tokens':1})
+    def index(self, docids=None, clear_buffer=True):
+        """ 
+        Indexes documents.
+        Args:
+            docids (lst): a list of document ids
+        Returns:
+            None
+        """
+        
+        if docids is not None:
+            corpus = self.corpus.get_doc_by_ids(docids)
+        else:
+            corpus = corpus = self.corpus.find({}, {'_id':0, 'id':1, 'tokens':1})
         
         self._index(corpus, clear_buffer=True)
         
