@@ -26,7 +26,7 @@ import simserver
 import Pyro4
 
 if __name__ == '__main__':
-    logging.basicConfig(filename='simserver.log', format='%(asctime)s : %(levelname)s : %(module)s:%(lineno)d : %(funcName)s(%(threadName)s) : %(message)s')
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(module)s:%(lineno)d : %(funcName)s(%(threadName)s) : %(message)s')
     logging.root.setLevel(level=logging.INFO)
     logging.info("running %s" % ' '.join(sys.argv))
 
@@ -40,13 +40,22 @@ if __name__ == '__main__':
     basename = sys.argv[1]
     simserver = simserver.SessionServer(basename)
     
-    try:
-        Pyro4.locateNS()
-    except Pyro4.errors.NamingError:
-        os.system("python -m Pyro4.naming -n 0.0.0.0 &")
-    daemon = Pyro4.Daemon()                 # make a Pyro daemon
-    uri = daemon.register(simserver, 'gensim.testserver')   # register the greeting object as a Pyro object
-    print uri
-    daemon.requestLoop()   
+    
+    def getNS():
+        try:
+            return Pyro4.locateNS()
+        except Pyro4.errors.NamingError:
+            os.system("python -m Pyro4.naming -n 0.0.0.0 &")
+            return Pyro4.locateNS()
+    
+    with getNS() as ns:
+        with Pyro4.Daemon() as daemon:
+            # register server for remote access
+            servername = 'gensim.simserver'
+            uri = daemon.register(simserver, servername)
+            ns.remove(servername)
+            ns.register(servername, uri)
+            logging.info("%s registered with nameserver (URI '%s')" % (servername, uri))
+            daemon.requestLoop()  
 
     logging.info("finished running %s" % program)
