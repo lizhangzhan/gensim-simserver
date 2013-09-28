@@ -44,6 +44,8 @@ TOP_SIMS = 100 # when precomputing similarities, only consider this many "most s
 SHARD_SIZE = 65536 # spill index shards to disk in SHARD_SIZE-ed chunks of documents
 DEFAULT_NUM_TOPICS = 400 # use this many topics for topic models unless user specified a value
 JOURNAL_MODE = 'OFF' # don't keep journals in sqlite dbs
+MONGO_DB_NAME = 'wordizdb2'
+COLLECTION_NAME = 'corpus'
 
 
 
@@ -61,6 +63,8 @@ def merge_sims(oldsims, newsims, clip=None):
 
 
 class MongoCorpus():
+    """ A MongoDB container for the corpus to train/index. Used internally by Simserver. """
+    
     def __init__(self, server='localhost', db='wordizdb', collection='corpus'):
         self.connect(server, db, collection)
     
@@ -69,9 +73,14 @@ class MongoCorpus():
         self.db = self.client[db]
         self.corpus = self.db[collection]
         
-    def get_corpus(self):
+    def get_all_docs(self):
         it = self.corpus.find()
         return it['result']
+    
+    def get_doc_by_ids(self, docids):
+        for id in docids:
+            doc = self.corpus.find_one({'id' : id }, {'_id' : 0, 'id' : 1, 'tokens' : 1})
+            yield doc
 
 class SimIndex(gensim.utils.SaveLoad):
     """
@@ -144,7 +153,7 @@ class SimIndex(gensim.utils.SaveLoad):
                 delattr(self, val)
             except:
                 pass
-    
+        
     def index_documents(self, fresh_docs, model):
         """
         Update fresh index with new documents (potentially replacing old ones with
@@ -450,6 +459,13 @@ class SimServer(object):
         self.use_locks = use_locks
         self.lock_update = threading.RLock() if use_locks else gensim.utils.nocm
         try:
+            client = MongoClient()
+            mongodb = client[MONGO_DB_NAME]
+            self.corpus = mongodb[COLLECTION_NAME]
+        except:
+            logger.info("Could not connect to MongoDB")
+            raise
+        try:
             self.fresh_index = SimIndex.load(self.location('index_fresh'))
         except:
             logger.debug("starting a new fresh index")
@@ -543,8 +559,13 @@ class SimServer(object):
             self.fresh_docs[docid] = doc
         self.fresh_docs.sync()
 
+    def train(self, method='lsi'):
+        corpus = self.corpus.find({}, {'_id':0, 'id':1, 'tokens':1})
+                
+        self._train(corpus, method=method)
+    
     @gensim.utils.synchronous('lock_update')
-    def train(self, corpus=None, method='auto', clear_buffer=True, params=None):
+    def _train(self, corpus=None, method='auto', clear_buffer=True, params=None):
         """
         Create an indexing model. Will overwrite the model if it already exists.
         All indexes become invalid, because documents in them use a now-obsolete
