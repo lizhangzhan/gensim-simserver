@@ -40,8 +40,13 @@ if __name__ == '__main__':
     basename = sys.argv[1]
     simserver = simserver.SessionServer(basename)
     
+    try:
+        Pyro4.locateNS()
+    except Pyro4.errors.NamingError:
+        os.system("python -m Pyro4.naming -n 0.0.0.0 &")
     daemon = Pyro4.Daemon()                 # make a Pyro daemon
     uri = daemon.register(simserver, 'gensim.testserver')   # register the greeting object as a Pyro object
+    print uri
     daemon.requestLoop()   
 
     logging.info("finished running %s" % program)
