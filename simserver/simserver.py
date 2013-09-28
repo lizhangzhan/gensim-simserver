@@ -559,10 +559,10 @@ class SimServer(object):
             self.fresh_docs[docid] = doc
         self.fresh_docs.sync()
 
-    def train(self, method='lsi'):
+    def train(self, method='lsi', clear_buffer=True, params=None):
         corpus = self.corpus.find({}, {'_id':0, 'id':1, 'tokens':1})
                 
-        self._train(corpus, method=method)
+        self._train(corpus, method=method, clear_buffer=True, params=None)
     
     @gensim.utils.synchronous('lock_update')
     def _train(self, corpus=None, method='auto', clear_buffer=True, params=None):
@@ -594,8 +594,13 @@ class SimServer(object):
         self.model = SimModel(self.fresh_docs, method=method, params=params)
         self.flush(save_model=True, clear_buffer=clear_buffer)
 
+    def index(self, clear_buffer=True):
+        corpus = corpus = self.corpus.find({}, {'_id':0, 'id':1, 'tokens':1})
+        
+        self._index(corpus, clear_buffer=True)
+        
     @gensim.utils.synchronous('lock_update')
-    def index(self, corpus=None, clear_buffer=True):
+    def _index(self, corpus=None, clear_buffer=True):
         """
         Permanently index all documents previously added via `buffer`, or
         directly index documents from `corpus`, if specified.
