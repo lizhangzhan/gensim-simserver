@@ -416,7 +416,9 @@ class SimModel(gensim.utils.SaveLoad):
     def get_tfidf(self, doc):
         bow = self.dictionary.doc2bow(doc['tokens'])
         if hasattr(self, 'tfidf'):
-            return self.tfidf[bow]
+            tmp = self.tfidf[bow]
+            tfidf = [ (self.dictionary[word_id], score) for word_id, score in tmp ]
+            return tfidf
         if hasattr(self, 'logent'):
             return self.logent[bow]
         raise ValueError("model must contain either TF-IDF or LogEntropy transformation")
