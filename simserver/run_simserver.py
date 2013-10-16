@@ -21,7 +21,7 @@ import os
 import sys
 
 import gensim
-import simserver
+import session_server
 
 import Pyro4
 
@@ -38,7 +38,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     basename = sys.argv[1]
-    simserver = simserver.SessionServer(basename)
+    simserver = session_server.SessionServer(basename)
     
     
     def getNS():
