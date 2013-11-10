@@ -3,7 +3,7 @@ from pymongo import MongoClient
 class MongoCorpus():
     """ A MongoDB container for the corpus to train/index. Used internally by Simserver. """
     
-    def __init__(self, server='localhost', db='wordizdb4', collection='article_doc'):
+    def __init__(self, server='localhost', db='wordizdb4', collection='article'):
         self.connect(server, db, collection)
     
     def connect(self, server, db, collection):
