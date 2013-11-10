@@ -151,7 +151,7 @@ class SimServer(object):
                 logger.warning("asked to re-add id %r; rewriting old value" % docid)
             self.fresh_docs[docid] = doc
         self.fresh_docs.sync()
-
+    
     def show_corpus_status(self):
         return self.corpus.status()
 

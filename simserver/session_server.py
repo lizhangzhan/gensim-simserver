@@ -161,20 +161,8 @@ class SessionServer(gensim.utils.SaveLoad):
             self.commit()
         return result
     
-    @gensim.utils.synchronous('lock_update')
-    def use_collection(self, *args, **kwargs):
-        """Change the corpus to another collection"""
-        self.check_session()
-        result = self.session.corpus.use_collection(*args, **kwargs)
-        if self.autosession:
-            self.commit()
-        return result
-    
     def show_corpus_status(self):
-        self.check_session()
-        result = self.session.show_corpus_status()
-        if self.autosession:
-            self.commit()
+        result = self.stable.show_corpus_status()
         return result
     
     @gensim.utils.synchronous('lock_update')

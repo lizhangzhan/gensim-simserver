@@ -3,7 +3,7 @@ from pymongo import MongoClient
 class MongoCorpus():
     """ A MongoDB container for the corpus to train/index. Used internally by Simserver. """
     
-    def __init__(self, server='localhost', db='wordizdb4', collection='article'):
+    def __init__(self, server='localhost', db='wordizdb4', collection='article_doc'):
         self.connect(server, db, collection)
     
     def connect(self, server, db, collection):
@@ -13,6 +13,7 @@ class MongoCorpus():
     
     def use_collection(self, collection):
         self.corpus = self.db[collection]
+        return str(self.corpus)
         
     def get_all_docs(self):
         it = self.corpus.find()
