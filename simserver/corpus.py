@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 
-class MongoCorpus():
-    """ A MongoDB container for the corpus to train/index. Used internally by Simserver. """
+class MongoCorpus(object):
+    """ A MongoDB container for the corpus to train/index. """
     
     def __init__(self, server='localhost', db='wordizdb4', collection='article'):
         self.connect(server, db, collection)
@@ -33,3 +33,10 @@ class MongoCorpus():
         info['corpus'] = str(self.corpus)
         
         return info
+    
+    def __iter__(self):
+        return self.corpus.find({}, {'_id':0, 'id':1, 'tokens':1})
+    
+class SQLCorpus(object):
+    """ Class to train a model on a corpus in a relational db. """
+    pass

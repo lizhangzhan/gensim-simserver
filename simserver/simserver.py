@@ -154,14 +154,9 @@ class SimServer(object):
     
     def show_corpus_status(self):
         return self.corpus.status()
-
-    def train(self, method='lsi', clear_buffer=True, params=None):
-        corpus = self.corpus.find({}, {'_id':0, 'id':1, 'tokens':1})
-                
-        self._train(corpus, method=method, clear_buffer=True, params=None)
     
     @gensim.utils.synchronous('lock_update')
-    def _train(self, corpus=None, method='auto', clear_buffer=True, params=None):
+    def train(self, corpus=None, method='auto', clear_buffer=True, params=None):
         """
         Create an indexing model. Will overwrite the model if it already exists.
         All indexes become invalid, because documents in them use a now-obsolete
